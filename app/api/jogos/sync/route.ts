@@ -8,8 +8,14 @@ const supabaseAdmin = () => createClient(
 )
 
 export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
   const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const querySecret = searchParams.get('secret')
+  const isAuthorized =
+    authHeader === `Bearer ${process.env.CRON_SECRET}` ||
+    querySecret === process.env.CRON_SECRET
+
+  if (!isAuthorized) {
     return new Response('Unauthorized', { status: 401 })
   }
 
