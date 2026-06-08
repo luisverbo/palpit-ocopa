@@ -1,8 +1,5 @@
 'use client'
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { createClient } from '@/lib/supabase/client'
 import type { Jogo, Palpite } from '@/types'
 import { bandeiraPais } from '@/lib/bandeiras'
@@ -23,7 +20,6 @@ export function PalpiteForm({ jogo, palpiteExistente, ligaId, onSalvo }: Props) 
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
   const [sucesso, setSucesso] = useState(false)
-
   const supabase = createClient()
 
   async function salvar() {
@@ -51,68 +47,80 @@ export function PalpiteForm({ jogo, palpiteExistente, ligaId, onSalvo }: Props) 
       result = await supabase.from('palpites').insert(payload).select().single()
     }
 
-    if (result.error) {
-      setErro('Erro ao salvar: ' + result.error.message)
-    } else {
-      setSucesso(true)
-      onSalvo?.(result.data)
-    }
+    if (result.error) { setErro('Erro: ' + result.error.message) }
+    else { setSucesso(true); onSalvo?.(result.data) }
     setSalvando(false)
   }
 
+  const btnStyle = (active: boolean) => ({
+    flex: 1,
+    padding: '8px',
+    borderRadius: '10px',
+    border: `2px solid ${active ? '#009c3b' : '#1e4028'}`,
+    background: active ? 'rgba(0,156,59,0.15)' : 'rgba(0,0,0,0.2)',
+    color: active ? '#009c3b' : '#6b7280',
+    fontWeight: active ? 'bold' : 'normal',
+    cursor: 'pointer',
+    transition: 'all 0.15s',
+    fontSize: '13px',
+  } as React.CSSProperties)
+
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-5">
+    <div className="rounded-2xl p-5 border space-y-5" style={{ background: '#132b1a', borderColor: '#1e4028' }}>
+      {/* Seleções e placar */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col items-center gap-2 flex-1">
-          <span className="text-4xl">{bandeiraPais(jogo.selecao_casa?.codigo ?? '')}</span>
-          <span className="text-sm text-zinc-400">{jogo.selecao_casa?.nome ?? 'Casa'}</span>
+          <span className="text-5xl">{bandeiraPais(jogo.selecao_casa?.codigo ?? '')}</span>
+          <span className="text-sm font-bold text-white">{jogo.selecao_casa?.nome ?? 'Casa'}</span>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="flex flex-col items-center">
-            <Label className="text-xs text-zinc-500 mb-1">Casa</Label>
-            <Input
-              type="number"
-              min={0}
-              max={20}
-              value={golsCasa}
-              onChange={e => setGolsCasa(parseInt(e.target.value) || 0)}
-              className="w-16 text-center text-xl font-bold bg-zinc-800 border-zinc-700 text-white"
-            />
+            <span className="text-xs mb-1" style={{ color: '#6b7280' }}>Casa</span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setGolsCasa(Math.max(0, golsCasa - 1))}
+                className="w-7 h-7 rounded-lg font-bold text-lg flex items-center justify-center"
+                style={{ background: '#1e4028', color: '#009c3b' }}>-</button>
+              <span className="text-3xl font-black w-10 text-center text-white">{golsCasa}</span>
+              <button onClick={() => setGolsCasa(golsCasa + 1)}
+                className="w-7 h-7 rounded-lg font-bold text-lg flex items-center justify-center"
+                style={{ background: '#1e4028', color: '#009c3b' }}>+</button>
+            </div>
           </div>
-          <span className="text-2xl text-zinc-500 mt-4">×</span>
+          <span className="text-2xl font-black" style={{ color: '#FFDF00' }}>×</span>
           <div className="flex flex-col items-center">
-            <Label className="text-xs text-zinc-500 mb-1">Fora</Label>
-            <Input
-              type="number"
-              min={0}
-              max={20}
-              value={golsFora}
-              onChange={e => setGolsFora(parseInt(e.target.value) || 0)}
-              className="w-16 text-center text-xl font-bold bg-zinc-800 border-zinc-700 text-white"
-            />
+            <span className="text-xs mb-1" style={{ color: '#6b7280' }}>Fora</span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setGolsFora(Math.max(0, golsFora - 1))}
+                className="w-7 h-7 rounded-lg font-bold text-lg flex items-center justify-center"
+                style={{ background: '#1e4028', color: '#009c3b' }}>-</button>
+              <span className="text-3xl font-black w-10 text-center text-white">{golsFora}</span>
+              <button onClick={() => setGolsFora(golsFora + 1)}
+                className="w-7 h-7 rounded-lg font-bold text-lg flex items-center justify-center"
+                style={{ background: '#1e4028', color: '#009c3b' }}>+</button>
+            </div>
           </div>
         </div>
 
         <div className="flex flex-col items-center gap-2 flex-1">
-          <span className="text-4xl">{bandeiraPais(jogo.selecao_fora?.codigo ?? '')}</span>
-          <span className="text-sm text-zinc-400">{jogo.selecao_fora?.nome ?? 'Fora'}</span>
+          <span className="text-5xl">{bandeiraPais(jogo.selecao_fora?.codigo ?? '')}</span>
+          <span className="text-sm font-bold text-white">{jogo.selecao_fora?.nome ?? 'Fora'}</span>
         </div>
       </div>
 
-      <div className="border-t border-zinc-800 pt-4 space-y-3">
-        <p className="text-xs text-zinc-400 font-medium uppercase tracking-wider">Palpites extras (+pontos)</p>
+      {/* Palpites extras */}
+      <div className="border-t pt-4 space-y-3" style={{ borderColor: '#1e4028' }}>
+        <p className="text-xs font-bold uppercase tracking-widest" style={{ color: '#009c3b' }}>
+          ⚡ Palpites extras (mais pontos!)
+        </p>
 
         <div>
-          <Label className="text-xs text-zinc-400">Total de gols (2.5)</Label>
-          <div className="flex gap-2 mt-1">
+          <p className="text-xs mb-2" style={{ color: '#6b7280' }}>Total de gols (linha: 2.5)</p>
+          <div className="flex gap-2">
             {(['over', 'under'] as const).map(o => (
-              <button
-                key={o}
-                onClick={() => setOverUnder(overUnder === o ? undefined : o)}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${overUnder === o ? 'bg-green-500/20 border-green-500 text-green-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-600'}`}
-              >
-                {o === 'over' ? 'Over +2.5' : 'Under -2.5'}
+              <button key={o} onClick={() => setOverUnder(overUnder === o ? undefined : o)}
+                style={btnStyle(overUnder === o)}>
+                {o === 'over' ? '⬆️ Over +2.5' : '⬇️ Under -2.5'}
               </button>
             ))}
           </div>
@@ -121,29 +129,23 @@ export function PalpiteForm({ jogo, palpiteExistente, ligaId, onSalvo }: Props) 
         {jogo.fase !== 'grupos' && (
           <>
             <div>
-              <Label className="text-xs text-zinc-400">Vai para prorrogação?</Label>
-              <div className="flex gap-2 mt-1">
+              <p className="text-xs mb-2" style={{ color: '#6b7280' }}>Vai para prorrogação?</p>
+              <div className="flex gap-2">
                 {[true, false].map(v => (
-                  <button
-                    key={String(v)}
-                    onClick={() => setVaiProrrogacao(vaiProrrogacao === v ? undefined : v)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${vaiProrrogacao === v ? 'bg-green-500/20 border-green-500 text-green-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-600'}`}
-                  >
-                    {v ? 'Sim' : 'Não'}
+                  <button key={String(v)} onClick={() => setVaiProrrogacao(vaiProrrogacao === v ? undefined : v)}
+                    style={btnStyle(vaiProrrogacao === v)}>
+                    {v ? '✅ Sim' : '❌ Não'}
                   </button>
                 ))}
               </div>
             </div>
             <div>
-              <Label className="text-xs text-zinc-400">Vai para pênaltis?</Label>
-              <div className="flex gap-2 mt-1">
+              <p className="text-xs mb-2" style={{ color: '#6b7280' }}>Vai para pênaltis?</p>
+              <div className="flex gap-2">
                 {[true, false].map(v => (
-                  <button
-                    key={String(v)}
-                    onClick={() => setVaiPenaltis(vaiPenaltis === v ? undefined : v)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${vaiPenaltis === v ? 'bg-green-500/20 border-green-500 text-green-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-600'}`}
-                  >
-                    {v ? 'Sim' : 'Não'}
+                  <button key={String(v)} onClick={() => setVaiPenaltis(vaiPenaltis === v ? undefined : v)}
+                    style={btnStyle(vaiPenaltis === v)}>
+                    {v ? '✅ Sim' : '❌ Não'}
                   </button>
                 ))}
               </div>
@@ -153,15 +155,13 @@ export function PalpiteForm({ jogo, palpiteExistente, ligaId, onSalvo }: Props) 
       </div>
 
       {erro && <p className="text-sm text-red-400">{erro}</p>}
-      {sucesso && <p className="text-sm text-green-400">Palpite salvo! ⚽</p>}
+      {sucesso && <p className="text-sm font-bold" style={{ color: '#009c3b' }}>✅ Palpite salvo!</p>}
 
-      <Button
-        onClick={salvar}
-        disabled={salvando}
-        className="w-full bg-green-500 hover:bg-green-400 text-black font-bold"
-      >
-        {salvando ? 'Salvando...' : palpiteExistente ? 'Atualizar Palpite' : 'Confirmar Palpite'}
-      </Button>
+      <button onClick={salvar} disabled={salvando}
+        className="w-full py-4 rounded-xl font-black text-lg transition-all hover:scale-[1.02] disabled:opacity-50"
+        style={{ background: salvando ? '#1e4028' : '#009c3b', color: '#fff', boxShadow: '0 0 20px rgba(0,156,59,0.3)' }}>
+        {salvando ? 'Salvando...' : palpiteExistente ? '✏️ Atualizar Palpite' : '⚽ Confirmar Palpite'}
+      </button>
     </div>
   )
 }
