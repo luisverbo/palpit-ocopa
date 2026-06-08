@@ -6,35 +6,29 @@ export async function GET(request: Request) {
     return new Response('Unauthorized', { status: 401 })
   }
 
-  const competitionId = process.env.FOOTBALL_DATA_COMPETITION || '2000'
-  const apiKey = process.env.FOOTBALL_DATA_API_KEY || ''
+  const urls = [
+    'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard',
+    'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=20260611',
+    'https://sports.core.api.espn.com/v2/sports/soccer/leagues/fifa.world/events?limit=10',
+    'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/schedule',
+  ]
 
-  try {
-    // Tenta buscar competições disponíveis
-    const resComps = await fetch('https://api.football-data.org/v4/competitions', {
-      headers: { 'X-Auth-Token': apiKey },
-      cache: 'no-store',
-    })
-    const comps = await resComps.json()
+  const results: any = {}
 
-    // Tenta buscar jogos da competição configurada
-    const resMatches = await fetch(`https://api.football-data.org/v4/competitions/${competitionId}/matches`, {
-      headers: { 'X-Auth-Token': apiKey },
-      cache: 'no-store',
-    })
-    const matches = await resMatches.json()
-
-    return NextResponse.json({
-      configuredCompetitionId: competitionId,
-      hasApiKey: !!apiKey,
-      apiKeyPrefix: apiKey.slice(0, 8) + '...',
-      competitionsAvailable: comps?.competitions?.map((c: any) => ({ id: c.id, code: c.code, name: c.name })) ?? comps?.message,
-      matchesStatus: resMatches.status,
-      matchCount: matches?.matches?.length ?? 0,
-      matchesError: matches?.message ?? null,
-      firstMatch: matches?.matches?.[0] ?? null,
-    })
-  } catch (err) {
-    return NextResponse.json({ erro: String(err) }, { status: 500 })
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { cache: 'no-store' })
+      const data = await res.json()
+      results[url] = {
+        status: res.status,
+        eventCount: data?.events?.length ?? data?.count ?? 'N/A',
+        keys: Object.keys(data),
+        sample: JSON.stringify(data).slice(0, 300),
+      }
+    } catch (err) {
+      results[url] = { erro: String(err) }
+    }
   }
+
+  return NextResponse.json(results)
 }
