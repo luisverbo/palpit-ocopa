@@ -34,18 +34,13 @@ export function PalpiteForm({ jogo, palpiteExistente, ligaId, onSalvo }: Props) 
       liga_id: ligaId ?? null,
       gols_casa: golsCasa,
       gols_fora: golsFora,
-      over_under: overUnder ?? null,
-      over_under_valor: overUnder ? 2.5 : null,
       vai_prorrogacao: jogo.fase !== 'grupos' ? vaiProrrogacao ?? null : null,
       vai_penaltis: jogo.fase !== 'grupos' ? vaiPenaltis ?? null : null,
     }
 
-    let result
-    if (palpiteExistente) {
-      result = await supabase.from('palpites').update(payload).eq('id', palpiteExistente.id).select().single()
-    } else {
-      result = await supabase.from('palpites').insert(payload).select().single()
-    }
+    const result = await supabase.from('palpites')
+      .upsert(payload, { onConflict: 'user_id,jogo_id', ignoreDuplicates: false })
+      .select().single()
 
     if (result.error) { setErro('Erro: ' + result.error.message) }
     else { setSucesso(true); onSalvo?.(result.data) }

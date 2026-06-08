@@ -2,11 +2,13 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Home, Calendar, Trophy, Users, User, LogOut, BookOpen } from 'lucide-react'
+import { Home, Calendar, Trophy, Users, User, LogOut, BookOpen, Target, Star } from 'lucide-react'
 
 const LINKS = [
   { href: '/dashboard', icon: Home, label: 'Início' },
   { href: '/jogos', icon: Calendar, label: 'Jogos' },
+  { href: '/meus-palpites', icon: Target, label: 'Meus Palpites' },
+  { href: '/campeao', icon: Star, label: 'Campeão' },
   { href: '/ligas', icon: Users, label: 'Ligas' },
   { href: '/ranking', icon: Trophy, label: 'Ranking' },
   { href: '/regras', icon: BookOpen, label: 'Regras' },
