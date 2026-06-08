@@ -114,18 +114,6 @@ export function PalpiteForm({ jogo, palpiteExistente, ligaId, onSalvo }: Props) 
           ⚡ Palpites extras (mais pontos!)
         </p>
 
-        <div>
-          <p className="text-xs mb-2" style={{ color: '#6b7280' }}>Total de gols (linha: 2.5)</p>
-          <div className="flex gap-2">
-            {(['over', 'under'] as const).map(o => (
-              <button key={o} onClick={() => setOverUnder(overUnder === o ? undefined : o)}
-                style={btnStyle(overUnder === o)}>
-                {o === 'over' ? '⬆️ Mais de 2.5 gols' : '⬇️ Menos de 2.5 gols'}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {jogo.fase !== 'grupos' && (
           <>
             <div>
