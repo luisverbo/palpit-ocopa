@@ -17,10 +17,9 @@ export async function GET(request: Request) {
   const supabase = supabaseAdmin()
 
   try {
-    // Busca todos os jogos da Copa 2026 pela ESPN API (gratuita, sem chave)
-    const eventos = await buscarJogosESPN()
+    const eventos = await buscarTodosJogos()
     if (!eventos.length) {
-      return NextResponse.json({ ok: false, erro: 'Nenhum jogo retornado pela ESPN API' })
+      return NextResponse.json({ ok: false, erro: 'Nenhum jogo retornado' })
     }
 
     let sincronizados = 0
@@ -39,32 +38,30 @@ export async function GET(request: Request) {
 
       const dataHora = new Date(evento.date)
       const prazo = new Date(dataHora.getTime() - 60 * 60 * 1000)
-      const status = mapearStatusESPN(competition.status?.type?.name ?? '')
+      const status = mapearStatus(competition.status?.type?.name ?? '')
+      const golsCasa = homeTeam.score !== undefined && homeTeam.score !== '' ? parseInt(homeTeam.score) : null
+      const golsFora = awayTeam.score !== undefined && awayTeam.score !== '' ? parseInt(awayTeam.score) : null
+      const nomeFase = evento.name ?? evento.shortName ?? ''
 
-      const golsCasa = homeTeam.score ? parseInt(homeTeam.score) : null
-      const golsFora = awayTeam.score ? parseInt(awayTeam.score) : null
-
-      const jogoData = {
+      await supabase.from('jogos').upsert({
         id_externo: parseInt(evento.id),
         selecao_casa_id: casaId,
         selecao_fora_id: foraId,
         data_hora: dataHora.toISOString(),
         prazo_palpite: prazo.toISOString(),
-        fase: mapearFaseESPN(evento.name ?? '', evento.season?.slug ?? ''),
-        grupo: extrairGrupo(evento.name ?? ''),
+        fase: mapearFase(nomeFase),
+        grupo: extrairGrupo(nomeFase),
         rodada: evento.week?.number ?? null,
         status,
         gols_casa: golsCasa,
         gols_fora: golsFora,
-        prorrogacao: competition.status?.type?.shortDetail?.includes('ET') ?? false,
-        penaltis: competition.status?.type?.shortDetail?.includes('PEN') ?? false,
+        prorrogacao: false,
+        penaltis: false,
         updated_at: new Date().toISOString(),
-      }
-
-      await supabase.from('jogos').upsert(jogoData, { onConflict: 'id_externo' })
+      }, { onConflict: 'id_externo' })
 
       if (status === 'encerrado') {
-        const { data: jogoDb } = await supabase.from('jogos').select('id').eq('id_externo', jogoData.id_externo).single()
+        const { data: jogoDb } = await supabase.from('jogos').select('id').eq('id_externo', parseInt(evento.id)).single()
         if (jogoDb) await calcularPontosJogo(supabase, jogoDb.id)
       }
 
@@ -78,38 +75,44 @@ export async function GET(request: Request) {
   }
 }
 
-async function buscarJogosESPN(): Promise<any[]> {
-  const anos = ['20260611-20260630', '20260701-20260720']
+async function buscarTodosJogos(): Promise<any[]> {
   let todos: any[] = []
 
-  for (const periodo of anos) {
-    const [inicio, fim] = periodo.split('-')
-    try {
-      const res = await fetch(
-        `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${inicio}-${fim}&limit=200`,
-        { cache: 'no-store' }
-      )
-      const data = await res.json()
-      if (data.events) todos = [...todos, ...data.events]
-    } catch {}
-  }
+  // Busca por cada dia da Copa (11 Jun a 19 Jul 2026)
+  const datas = gerarDatas('2026-06-11', '2026-07-19')
 
-  // Fallback: tenta rota alternativa
-  if (!todos.length) {
+  for (const data of datas) {
     try {
       const res = await fetch(
-        'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=200',
+        `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${data}`,
         { cache: 'no-store' }
       )
-      const data = await res.json()
-      if (data.events) todos = data.events
+      if (!res.ok) continue
+      const json = await res.json()
+      if (json.events?.length) {
+        todos = [...todos, ...json.events]
+      }
     } catch {}
   }
 
   return todos
 }
 
-async function obterOuCriarSelecao(supabase: any, team: { id: string; name: string; abbreviation: string; displayName: string }) {
+function gerarDatas(inicio: string, fim: string): string[] {
+  const datas: string[] = []
+  const d = new Date(inicio)
+  const end = new Date(fim)
+  while (d <= end) {
+    const ano = d.getFullYear()
+    const mes = String(d.getMonth() + 1).padStart(2, '0')
+    const dia = String(d.getDate()).padStart(2, '0')
+    datas.push(`${ano}${mes}${dia}`)
+    d.setDate(d.getDate() + 1)
+  }
+  return datas
+}
+
+async function obterOuCriarSelecao(supabase: any, team: any) {
   if (!team?.abbreviation) return null
   const codigo = team.abbreviation.toUpperCase().slice(0, 3)
   const { data } = await supabase.from('selecoes').select('id').eq('codigo', codigo).maybeSingle()
@@ -120,21 +123,21 @@ async function obterOuCriarSelecao(supabase: any, team: { id: string; name: stri
   return nova?.id ?? null
 }
 
-function mapearStatusESPN(status: string): string {
+function mapearStatus(status: string): string {
   if (status === 'STATUS_FINAL') return 'encerrado'
-  if (status === 'STATUS_IN_PROGRESS' || status === 'STATUS_HALFTIME') return 'ao_vivo'
-  if (status === 'STATUS_CANCELED' || status === 'STATUS_POSTPONED') return 'cancelado'
+  if (['STATUS_IN_PROGRESS', 'STATUS_HALFTIME'].includes(status)) return 'ao_vivo'
+  if (['STATUS_CANCELED', 'STATUS_POSTPONED'].includes(status)) return 'cancelado'
   return 'agendado'
 }
 
-function mapearFaseESPN(nome: string, slug: string): string {
+function mapearFase(nome: string): string {
   const n = nome.toLowerCase()
   if (n.includes('final') && !n.includes('semi') && !n.includes('quarter') && !n.includes('third')) return 'final'
   if (n.includes('semi')) return 'semi'
   if (n.includes('quarter')) return 'quartas'
-  if (n.includes('round of 16') || n.includes('oitavas')) return 'oitavas'
-  if (n.includes('third')) return 'terceiro'
+  if (n.includes('round of 16')) return 'oitavas'
   if (n.includes('round of 32')) return 'oitavas'
+  if (n.includes('third')) return 'terceiro'
   return 'grupos'
 }
 
