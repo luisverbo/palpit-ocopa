@@ -76,40 +76,22 @@ export async function GET(request: Request) {
 }
 
 async function buscarTodosJogos(): Promise<any[]> {
-  let todos: any[] = []
+  // Uma única chamada com range completo da Copa
+  const urls = [
+    'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=20260611-20260719&limit=200',
+    'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=200',
+  ]
 
-  // Busca por cada dia da Copa (11 Jun a 19 Jul 2026)
-  const datas = gerarDatas('2026-06-11', '2026-07-19')
-
-  for (const data of datas) {
+  for (const url of urls) {
     try {
-      const res = await fetch(
-        `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${data}`,
-        { cache: 'no-store' }
-      )
+      const res = await fetch(url, { cache: 'no-store' })
       if (!res.ok) continue
       const json = await res.json()
-      if (json.events?.length) {
-        todos = [...todos, ...json.events]
-      }
+      if (json.events?.length) return json.events
     } catch {}
   }
 
-  return todos
-}
-
-function gerarDatas(inicio: string, fim: string): string[] {
-  const datas: string[] = []
-  const d = new Date(inicio)
-  const end = new Date(fim)
-  while (d <= end) {
-    const ano = d.getFullYear()
-    const mes = String(d.getMonth() + 1).padStart(2, '0')
-    const dia = String(d.getDate()).padStart(2, '0')
-    datas.push(`${ano}${mes}${dia}`)
-    d.setDate(d.getDate() + 1)
-  }
-  return datas
+  return []
 }
 
 async function obterOuCriarSelecao(supabase: any, team: any) {
