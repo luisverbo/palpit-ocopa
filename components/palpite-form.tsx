@@ -120,7 +120,7 @@ export function PalpiteForm({ jogo, palpiteExistente, ligaId, onSalvo }: Props) 
             {(['over', 'under'] as const).map(o => (
               <button key={o} onClick={() => setOverUnder(overUnder === o ? undefined : o)}
                 style={btnStyle(overUnder === o)}>
-                {o === 'over' ? '⬆️ Over +2.5' : '⬇️ Under -2.5'}
+                {o === 'over' ? '⬆️ Mais de 2.5 gols' : '⬇️ Menos de 2.5 gols'}
               </button>
             ))}
           </div>
